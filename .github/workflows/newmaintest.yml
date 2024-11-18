@@ -1,0 +1,36 @@
+name: trivy_scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+      - name: Auth with Google
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+      - name: Install gcloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          install_components: "beta"
+          project_id: "${{ env.PROJECT_ID }}"
+      - name: Install NPM and Load Config
+        uses: netfonds/github-runner/.github/actions/load-npm-config-file@main
+        with:
+          node_version: ${{ inputs.node_version }}
+      - name: Aqua Scan
+        uses: docker://aquasec/aqua-scanner
+        with:
+          args: trivy fs --scanners misconfig,vuln,secret --db-repository=registry.aquasec.com/trivy-db:2 --checks-bundle-repository=registry.aquasec.com/trivy-checks:1 --java-db-repository=registry.aquasec.com/trivy-java-db:1 --sast --package-json .
+        env:
+          AQUA_KEY: ${{ secrets.AQUA_KEY }}
+          AQUA_SECRET: ${{ secrets.AQUA_SECRET }}
+          TRIVY_USERNAME: ${{ secrets.TRIVY_USERNAME }}
+          TRIVY_PASSWORD: ${{ secrets.TRIVY_PASSWORD }}
+          GITHUB_TOKEN: ${{ github.token }}
+          AQUA_URL: https://api.eu-1.supply-chain.cloud.aquasec.com
+          CSPM_URL: https://eu-1.api.cloudsploit.com
+          TRIVY_RUN_AS_PLUGIN: 'aqua'
